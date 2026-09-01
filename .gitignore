@@ -1,0 +1,23 @@
+# Secrets
+.env
+.env.local
+*.env
+!*.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Backend runtime artifacts
+backend/artifacts/
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+
+# OS / editor
+.DS_Store
