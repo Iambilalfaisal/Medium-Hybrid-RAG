@@ -13,11 +13,13 @@ from app.ingestion.scrape_cache import ScrapeCache
 from app.ingestion.scraper import Scraper
 from app.retrieval.bm25_store import BM25Store
 from app.retrieval.pipeline import RetrievalPipeline
+from app.retrieval.title_index import TitleIndex
 
 _embedder = Embedder()
 _scrape_cache = ScrapeCache(settings.SCRAPE_CACHE_PATH)
 _scraper = Scraper()
 _bm25_store = BM25Store(settings.BM25_INDEX_PATH)
+_title_index = TitleIndex(settings.TITLE_INDEX_PATH)
 _progress = ProgressTracker()
 _provider_router = ProviderRouter()
 
@@ -47,6 +49,14 @@ def get_retrieval_pipeline() -> RetrievalPipeline:
 
 def get_provider_router() -> ProviderRouter:
     return _provider_router
+
+
+def get_embedder() -> Embedder:
+    return _embedder
+
+
+def get_title_index() -> TitleIndex:
+    return _title_index
 
 
 def get_progress_tracker() -> ProgressTracker:

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { triggerEvalRun } from "@/lib/api";
+import Button from "@/components/ui/Button";
 
 export default function EvalRunTrigger({ onTriggered }: { onTriggered: () => void }) {
   const [busy, setBusy] = useState(false);
@@ -22,14 +23,11 @@ export default function EvalRunTrigger({ onTriggered }: { onTriggered: () => voi
 
   return (
     <div className="flex items-center gap-3">
-      <button
-        className="rounded bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-40"
-        onClick={run}
-        disabled={busy}
-      >
+      <Button onClick={run} disabled={busy}>
+        {busy && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
         {busy ? "Starting…" : "Run Evaluation"}
-      </button>
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      </Button>
+      {error && <span className="text-sm text-danger">{error}</span>}
     </div>
   );
 }

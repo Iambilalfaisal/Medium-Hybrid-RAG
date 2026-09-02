@@ -78,7 +78,7 @@ class Chunk(Base):
     article_id: Mapped[str] = mapped_column(ForeignKey("articles.id", ondelete="CASCADE"), nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[list[float]] = mapped_column(Vector(settings.GEMINI_EMBEDDING_DIMS))
+    embedding: Mapped[list[float]] = mapped_column(Vector(settings.EMBEDDING_DIMS))
 
     parent: Mapped["ParentChunk"] = relationship(back_populates="children")
     article: Mapped["Article"] = relationship(back_populates="chunks")

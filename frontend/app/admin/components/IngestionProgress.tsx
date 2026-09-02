@@ -3,6 +3,22 @@
 import { useEffect, useState } from "react";
 import { getIngestionStatus } from "@/lib/api";
 import type { IngestionStatus } from "@/lib/types";
+import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
+
+const STATUS_TONE = {
+  idle: "neutral",
+  running: "accent",
+  completed: "success",
+  failed: "danger",
+} as const;
+
+const STAT_ITEMS: { key: keyof IngestionStatus; label: string }[] = [
+  { key: "articles_scraped_ok", label: "Scraped OK" },
+  { key: "articles_skipped", label: "Skipped" },
+  { key: "cleaner_rejected_count", label: "Cleaner rejected" },
+  { key: "chunks_created", label: "Chunks created" },
+];
 
 export default function IngestionProgress({ pollKey }: { pollKey: number }) {
   const [status, setStatus] = useState<IngestionStatus | null>(null);
@@ -31,35 +47,66 @@ export default function IngestionProgress({ pollKey }: { pollKey: number }) {
     };
   }, [pollKey]);
 
-  if (!status) return <p className="text-sm text-zinc-400">Loading status…</p>;
+  if (!status) {
+    return (
+      <Card className="flex flex-col gap-2">
+        <div className="h-4 w-24 animate-pulse rounded bg-surface-2" />
+        <div className="h-2 w-full animate-pulse rounded-full bg-surface-2" />
+      </Card>
+    );
+  }
 
   const pct =
     status.articles_total > 0 ? Math.round((status.articles_processed / status.articles_total) * 100) : 0;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-4 text-sm">
-      <div className="flex justify-between">
-        <span className="font-medium">Status: {status.status}</span>
-        {status.status === "running" && <span>{status.current_stage}</span>}
+    <Card className="flex flex-col gap-3 text-sm">
+      <div className="flex items-center justify-between">
+        <Badge tone={STATUS_TONE[status.status]} pulse={status.status === "running"}>
+          {status.status}
+        </Badge>
+        {status.status === "running" && <span className="text-xs text-text-faint">{status.current_stage}</span>}
       </div>
 
       {status.articles_total > 0 && (
-        <div className="h-2 w-full overflow-hidden rounded bg-zinc-100">
-          <div className="h-full bg-zinc-900 transition-all" style={{ width: `${pct}%` }} />
-        </div>
+        <>
+          <div className="relative h-2 w-full overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="relative h-full overflow-hidden rounded-full bg-accent transition-[width] duration-500 ease-out"
+              style={{ width: `${pct}%` }}
+            >
+              {status.status === "running" && (
+                <div
+                  className="absolute inset-0 animate-shimmer bg-[length:200%_100%]"
+                  style={{
+                    backgroundImage:
+                      "linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)",
+                  }}
+                />
+              )}
+            </div>
+          </div>
+          <div className="flex justify-between text-xs text-text-faint">
+            <span>
+              {status.articles_processed}/{status.articles_total} processed
+            </span>
+            <span className="font-mono">{pct}%</span>
+          </div>
+        </>
       )}
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-600">
-        <span>
-          Processed: {status.articles_processed}/{status.articles_total}
-        </span>
-        <span>Scraped OK: {status.articles_scraped_ok}</span>
-        <span>Skipped: {status.articles_skipped}</span>
-        <span>Cleaner rejected: {status.cleaner_rejected_count}</span>
-        <span>Chunks created: {status.chunks_created}</span>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3 sm:grid-cols-4">
+        {STAT_ITEMS.map((item) => (
+          <div key={item.key}>
+            <div className="font-mono text-base font-semibold text-text">{status[item.key] as number}</div>
+            <div className="text-[11px] uppercase tracking-wide text-text-faint">{item.label}</div>
+          </div>
+        ))}
       </div>
 
-      {status.status === "failed" && status.error && <p className="text-red-600">Error: {status.error}</p>}
-    </div>
+      {status.status === "failed" && status.error && (
+        <p className="rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger">{status.error}</p>
+      )}
+    </Card>
   );
 }

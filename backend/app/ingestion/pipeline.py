@@ -60,6 +60,11 @@ class IngestionPipeline:
 
         try:
             for row in rows:
+                if not force_rescrape and await self._already_ingested(row.id):
+                    scraped_ok += 1
+                    await self._progress.increment(articles_processed=1, articles_scraped_ok=1)
+                    continue
+
                 await self._progress.update(current_stage="scraping")
                 text = await self._get_article_text(row, force_rescrape)
 
@@ -97,6 +102,15 @@ class IngestionPipeline:
         # singleton reused across runs (see api/deps.py) — closing the shared httpx
         # client after the first run would break every run after it. The client is
         # closed once at app shutdown instead (see main.py's lifespan).
+
+    async def _already_ingested(self, article_id: str) -> bool:
+        """Lets an interrupted run (embedding-provider quota exhausted mid-run, crash,
+        manual stop) resume cheaply: articles that already have chunks are skipped
+        entirely rather than re-scraped and re-embedded — a scarce free-tier embed
+        budget can't afford to redo already-finished work on every retry."""
+        async with self._session_factory() as session:
+            result = await session.execute(select(Chunk.id).where(Chunk.article_id == article_id).limit(1))
+            return result.first() is not None
 
     async def _get_article_text(self, row, force_rescrape: bool) -> str | None:
         if not force_rescrape:
@@ -136,12 +150,25 @@ class IngestionPipeline:
             # ON DELETE CASCADE on chunks.parent_id takes the children with it.
             await session.execute(ParentChunk.__table__.delete().where(ParentChunk.article_id == article.id))
 
-            for parent_index, (parent_text, child_texts) in enumerate(parent_child_pairs):
+            parents = []
+            for parent_index, (parent_text, _) in enumerate(parent_child_pairs):
                 parent = ParentChunk(article_id=article.id, chunk_index=parent_index, text=parent_text)
                 session.add(parent)
-                await session.flush()
+                parents.append(parent)
+            await session.flush()
 
-                embeddings = await self._embedder.embed_texts(child_texts)
+            # One batched embed call per article instead of one per parent chunk —
+            # the API accepts many texts per call, so this cuts the request count by
+            # roughly the average number of parent chunks per article. Matters more
+            # now than it used to: the embedding provider's free-tier call budget is
+            # the actual bottleneck for ingesting the full dataset, not article count.
+            all_child_texts = [t for _, child_texts in parent_child_pairs for t in child_texts]
+            all_embeddings = await self._embedder.embed_texts(all_child_texts)
+
+            offset = 0
+            for parent, (_, child_texts) in zip(parents, parent_child_pairs):
+                embeddings = all_embeddings[offset : offset + len(child_texts)]
+                offset += len(child_texts)
                 for child_index, (child_text, embedding) in enumerate(zip(child_texts, embeddings)):
                     session.add(
                         Chunk(

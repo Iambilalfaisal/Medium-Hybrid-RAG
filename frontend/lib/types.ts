@@ -81,9 +81,17 @@ export interface EvalRunResult {
   retrieval_metrics: RetrievalMetrics;
 }
 
+export interface TitleSuggestion {
+  title: string;
+  url: string;
+  score: number;
+  description: string;
+}
+
 export type ChatSSEEvent =
   | { event: "sources"; data: { sources: SourceCitation[]; rewritten_query: string } }
   | { event: "token"; data: { text: string } }
   | { event: "done"; data: Record<string, never> }
   | { event: "abstain"; data: { reason: string } }
+  | { event: "suggestions"; data: { reason: string; suggestions: TitleSuggestion[] } }
   | { event: "error"; data: { message: string } };

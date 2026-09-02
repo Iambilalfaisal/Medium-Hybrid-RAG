@@ -4,12 +4,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sse_starlette.sse import EventSourceResponse
 
-from app.api.deps import get_provider_router, get_retrieval_pipeline
+from app.api.deps import get_embedder, get_provider_router, get_retrieval_pipeline, get_title_index
 from app.db.models import Article
 from app.db.session import SessionLocal
 from app.generation.chain import run_chat
 from app.generation.provider_router import ProviderRouter
+from app.ingestion.embedder import Embedder
 from app.retrieval.pipeline import RetrievalPipeline
+from app.retrieval.title_index import TitleIndex
 from app.schemas.chat import ChatRequest
 from app.schemas.filters import FilterOptionsResponse
 
@@ -21,11 +23,15 @@ async def chat(
     request: ChatRequest,
     retrieval: RetrievalPipeline = Depends(get_retrieval_pipeline),
     generator: ProviderRouter = Depends(get_provider_router),
+    embedder: Embedder = Depends(get_embedder),
+    title_index: TitleIndex = Depends(get_title_index),
 ) -> EventSourceResponse:
     messages = [m.model_dump() for m in request.messages]
 
     async def event_generator():
-        async for event in run_chat(retrieval, generator, messages, request.filters, request.top_k):
+        async for event in run_chat(
+            retrieval, generator, messages, request.filters, request.top_k, embedder, title_index
+        ):
             yield {"event": event["event"], "data": json.dumps(event["data"])}
 
     return EventSourceResponse(event_generator())

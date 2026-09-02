@@ -11,6 +11,7 @@ trafilatura
 rank_bm25
 cohere
 pandas
+numpy
 python-dotenv
 tenacity
 sse-starlette

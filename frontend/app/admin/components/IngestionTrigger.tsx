@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { startIngestion } from "@/lib/api";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
 
 export default function IngestionTrigger({ onStarted }: { onStarted: () => void }) {
   const [forceRescrape, setForceRescrape] = useState(false);
@@ -22,19 +24,23 @@ export default function IngestionTrigger({ onStarted }: { onStarted: () => void 
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-4">
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={forceRescrape} onChange={(e) => setForceRescrape(e.target.checked)} />
+    <Card className="flex flex-col gap-3">
+      <label className="flex w-fit items-center gap-2 text-sm text-text-muted">
+        <input
+          type="checkbox"
+          checked={forceRescrape}
+          onChange={(e) => setForceRescrape(e.target.checked)}
+          className="h-4 w-4 rounded border-border-strong accent-accent"
+        />
         Force re-scrape (ignore cache)
       </label>
-      <button
-        className="w-fit rounded bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-40"
-        onClick={trigger}
-        disabled={busy}
-      >
+      <Button onClick={trigger} disabled={busy} className="w-fit">
+        {busy && (
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+        )}
         {busy ? "Starting…" : "Run Ingestion"}
-      </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-    </div>
+      </Button>
+      {error && <p className="text-sm text-danger">{error}</p>}
+    </Card>
   );
 }

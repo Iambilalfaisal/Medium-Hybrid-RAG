@@ -1,30 +1,29 @@
-import asyncio
-
-from google import genai
-from google.genai import types
-from tenacity import retry, retry_if_exception_message, stop_after_attempt, wait_exponential
+import cohere
+from cohere.errors import TooManyRequestsError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import settings
 from app.utils.rate_limiter import RateLimiter
 
-_BATCH_SIZE = 100
+_BATCH_SIZE = 96  # Cohere embed's hard per-call batch limit
 
 
 class Embedder:
-    """Single concrete implementation (Gemini) — no EmbedderProtocol; see
-    protocols/generator.py for why only the generator has a protocol today.
-    Rate-limited: a real ingestion run against the live API hit
-    RESOURCE_EXHAUSTED on the embedding model's per-minute quota well below what the
-    published token-per-minute figure alone would suggest — pacing calls here is not
-    speculative hardening, it reproduced on the first real run."""
+    """Single concrete implementation (Cohere) — no EmbedderProtocol; see
+    protocols/generator.py for why only the generator has a protocol today. Went
+    through Gemini (daily embed quota exhausted) and OpenRouter free models (50
+    requests/day account-wide cap, also exhausted) before landing here: Cohere's
+    trial key has a separate embed allowance (1000 calls/month) from its rerank
+    allowance, with real headroom left. Cohere embeddings are asymmetric like
+    Gemini's were (search_document vs search_query input_type) for better
+    retrieval quality."""
 
     def __init__(self):
-        self._client = genai.Client(api_key=settings.GOOGLE_API_KEY)
-        self._model = settings.GEMINI_EMBEDDING_MODEL
-        self._dims = settings.GEMINI_EMBEDDING_DIMS
-        self._rate_limiter = RateLimiter(rate_per_minute=settings.GEMINI_EMBEDDING_RPM, burst=1)
+        self._client = cohere.AsyncClientV2(api_key=settings.COHERE_API_KEY)
+        self._model = settings.EMBEDDING_MODEL
+        self._rate_limiter = RateLimiter(rate_per_minute=settings.EMBEDDING_RPM, burst=1)
 
-    async def embed_texts(self, texts: list[str], task_type: str = "RETRIEVAL_DOCUMENT") -> list[list[float]]:
+    async def embed_texts(self, texts: list[str], input_type: str = "search_document") -> list[list[float]]:
         if not texts:
             return []
 
@@ -32,27 +31,21 @@ class Embedder:
         for i in range(0, len(texts), _BATCH_SIZE):
             batch = texts[i : i + _BATCH_SIZE]
             await self._rate_limiter.acquire()
-            response = await self._embed_batch(batch, task_type)
-            vectors.extend(e.values for e in response.embeddings)
+            response = await self._embed_batch(batch, input_type)
+            vectors.extend(response.embeddings.float_)
         return vectors
 
     @retry(
-        retry=retry_if_exception_message(match=".*RESOURCE_EXHAUSTED.*"),
+        retry=retry_if_exception_type(TooManyRequestsError),
         stop=stop_after_attempt(4),
         wait=wait_exponential(multiplier=2, min=4, max=60),
         reraise=True,
     )
-    async def _embed_batch(self, batch: list[str], task_type: str):
-        return await asyncio.to_thread(
-            self._client.models.embed_content,
-            model=self._model,
-            contents=batch,
-            config=types.EmbedContentConfig(output_dimensionality=self._dims, task_type=task_type),
+    async def _embed_batch(self, batch: list[str], input_type: str):
+        return await self._client.embed(
+            texts=batch, model=self._model, input_type=input_type, embedding_types=["float"]
         )
 
     async def embed_query(self, text: str) -> list[float]:
-        """Gemini embeddings are asymmetric: a query embedded with RETRIEVAL_QUERY
-        matches better against documents embedded with RETRIEVAL_DOCUMENT than if
-        both used the same task type."""
-        vectors = await self.embed_texts([text], task_type="RETRIEVAL_QUERY")
+        vectors = await self.embed_texts([text], input_type="search_query")
         return vectors[0]

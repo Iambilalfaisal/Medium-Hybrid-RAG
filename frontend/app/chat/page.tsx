@@ -55,6 +55,12 @@ export default function ChatPage() {
             content: `I don't have enough information to answer that. (${event.data.reason})`,
             status: "abstain",
           });
+        } else if (event.event === "suggestions") {
+          updateLastMessage({
+            content: "I don't have that ingested yet, but these articles look related:",
+            suggestions: event.data.suggestions,
+            status: "abstain",
+          });
         } else if (event.event === "error") {
           updateLastMessage({ content: `Something went wrong: ${event.data.message}`, status: "error" });
         }
@@ -65,11 +71,11 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-1">
-      <div className="hidden w-64 shrink-0 border-r border-zinc-200 p-4 md:block">
+    <div className="flex flex-1 bg-bg">
+      <div className="hidden w-64 shrink-0 p-4 md:block">
         <FilterPanel value={filters} onChange={setFilters} />
       </div>
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col border-l border-border bg-surface/40">
         <ChatThread messages={messages} />
         <MessageInput onSend={handleSend} disabled={isStreaming} />
       </div>

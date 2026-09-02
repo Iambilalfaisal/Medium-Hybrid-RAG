@@ -15,22 +15,22 @@ class Settings(BaseSettings):
     # Postgres
     DATABASE_URL: str
 
-    # Gemini
+    # Gemini (chat generation only — embeddings moved to Cohere, see below)
     GOOGLE_API_KEY: str
-    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
-    GEMINI_EMBEDDING_DIMS: int = 768
     GEMINI_CHAT_MODEL: str = "gemini-3.5-flash-lite"
-    GEMINI_EMBEDDING_RPM: int = 5  # conservative default — real free-tier embed RPM hit 429 well below the 10M TPM figure the TPM quota alone would suggest
 
     # OpenRouter (fallback generation only)
     OPENROUTER_API_KEY: str
     OPENROUTER_FALLBACK_MODEL: str = "z-ai/glm-5.2:free"
     PROVIDER_FAILOVER_COOLDOWN_SECONDS: int = 300
 
-    # Cohere Rerank
+    # Cohere (rerank + all embeddings — separate allowances on the trial key)
     COHERE_API_KEY: str
     COHERE_EVAL_RPM: int = 5
     RERANK_ABSTAIN_THRESHOLD: float = 0.3
+    EMBEDDING_MODEL: str = "embed-v4.0"
+    EMBEDDING_DIMS: int = 1536
+    EMBEDDING_RPM: int = 20
 
     # Scraping
     SCRAPE_CONCURRENCY: int = 2
@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     # Artifacts
     BM25_INDEX_PATH: str = "artifacts/bm25_index.pkl"
     SCRAPE_CACHE_PATH: str = "artifacts/scrape_cache.sqlite3"
+    TITLE_INDEX_PATH: str = "artifacts/title_index.pkl"
+    TITLE_SUGGEST_THRESHOLD: float = 0.4
 
 
 settings = Settings()
