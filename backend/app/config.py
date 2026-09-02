@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     BM25_INDEX_PATH: str = "artifacts/bm25_index.pkl"
     SCRAPE_CACHE_PATH: str = "artifacts/scrape_cache.sqlite3"
     TITLE_INDEX_PATH: str = "artifacts/title_index.pkl"
-    TITLE_SUGGEST_THRESHOLD: float = 0.4
+    TITLE_SUGGEST_THRESHOLD: float = 0.25
 
 
 settings = Settings()

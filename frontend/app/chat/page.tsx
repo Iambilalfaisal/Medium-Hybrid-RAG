@@ -52,12 +52,12 @@ export default function ChatPage() {
           updateLastMessage({ status: "done" });
         } else if (event.event === "abstain") {
           updateLastMessage({
-            content: `I don't have enough information to answer that. (${event.data.reason})`,
+            content: "I couldn't find anything in the ingested articles that answers this confidently — so rather than guess, I'm leaving it unanswered.",
             status: "abstain",
           });
         } else if (event.event === "suggestions") {
           updateLastMessage({
-            content: "I don't have that ingested yet, but these articles look related:",
+            content: "I couldn't find a confident answer to that in the ingested articles — but these look related and might help:",
             suggestions: event.data.suggestions,
             status: "abstain",
           });
